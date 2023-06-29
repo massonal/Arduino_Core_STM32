@@ -5,7 +5,7 @@
 # https://arduino.github.io/arduino-cli/latest/platform-specification/
 
 name=STM32 boards groups (Board to be selected from Tools submenu 'Board part number')
-version=2.5.0-dev
+version=2.6.0-dev
 
 # STM compile variables
 # ----------------------
@@ -28,7 +28,7 @@ compiler.objcopy.cmd=arm-none-eabi-objcopy
 compiler.elf2hex.cmd=arm-none-eabi-objcopy
 compiler.libraries.ldflags=
 
-compiler.extra_flags=-mcpu={build.mcu} {build.fpu} {build.float-abi} -DUSE_FULL_LL_DRIVER -mthumb "@{build.opt.path}"
+compiler.extra_flags=-mcpu={build.mcu} {build.fpu} {build.float-abi} -DVECT_TAB_OFFSET={build.flash_offset} -DUSE_FULL_LL_DRIVER -mthumb "@{build.opt.path}"
 
 compiler.S.flags={compiler.extra_flags} -c -x assembler-with-cpp {compiler.stm.extra_include}
 
@@ -108,7 +108,6 @@ build.float-abi=
 build.flags.optimize=-Os
 build.flags.debug=-DNDEBUG
 build.flags.ldspecs=--specs=nano.specs
-build.flash_offset=0
 
 # Pre and post build hooks
 build.opt.name=build.opt
@@ -119,6 +118,8 @@ extras.path={build.system.path}/extras
 # Create {build.opt} if not exists in the output sketch dir and force include of SrcWrapper library
 recipe.hooks.prebuild.1.pattern="{extras.path}/prebuild.sh" "{build.path}" "{build.source.path}" "{runtime.platform.path}"
 recipe.hooks.prebuild.1.pattern.windows="{runtime.tools.STM32Tools.path}/win/busybox.exe" sh "{extras.path}/prebuild.sh" "{build.path}" "{build.source.path}" "{runtime.platform.path}"
+recipe.hooks.postbuild.1.pattern="{extras.path}/postbuild.sh" "{build.path}" "{build.series}" "{runtime.platform.path}"
+recipe.hooks.postbuild.1.pattern.windows="{runtime.tools.STM32Tools.path}/win/busybox.exe" sh "{extras.path}/postbuild.sh" "{build.path}" "{build.series}" "{runtime.platform.path}"
 
 # compile patterns
 # ---------------------
@@ -177,7 +178,7 @@ tools.stm32CubeProg.busybox.windows={path}/win/busybox.exe
 tools.stm32CubeProg.cmd=stm32CubeProg.sh
 tools.stm32CubeProg.upload.params.verbose=
 tools.stm32CubeProg.upload.params.quiet=
-tools.stm32CubeProg.upload.pattern="{busybox}" sh "{path}/{cmd}" {upload.protocol} "{build.path}/{build.project_name}.bin" {upload.options}
+tools.stm32CubeProg.upload.pattern="{busybox}" sh "{path}/{cmd}" {upload.protocol} "{build.path}/{build.project_name}.bin" {build.flash_offset} {upload.options}
 
 # blackmagic upload for generic STM32
 tools.bmp_upload.cmd=arm-none-eabi-gdb
@@ -215,3 +216,16 @@ tools.remoteproc_gen.script=run_arduino_gen.sh
 tools.remoteproc_gen.upload.params.verbose=
 tools.remoteproc_gen.upload.params.quiet=
 tools.remoteproc_gen.upload.pattern="{busybox}" sh "{path}/{script}" generate "{build.path}/{build.project_name}.elf" "{build.path}/run_arduino_{build.project_name}.sh"
+
+# Debugger configuration (general options)
+# ----------------------------------------
+# EXPERIMENTAL feature:
+# - this is alpha and may be subject to change without notice
+debug.executable={build.path}/{build.project_name}.elf
+debug.toolchain=gcc
+debug.toolchain.path={compiler.path}
+debug.toolchain.prefix=arm-none-eabi-
+debug.server=openocd
+debug.server.openocd.path={runtime.tools.xpack-openocd-0.12.0-1.path}/bin/openocd
+debug.server.openocd.scripts_dir={runtime.tools.xpack-openocd-0.12.0-1.path}/openocd/scripts
+debug.server.openocd.script={build.path}/openocd.cfg
